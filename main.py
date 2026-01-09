@@ -54,6 +54,7 @@ def find_bike_route(
         coordinates=[start_coords, end_coords],
         profile=profile,
         format="geojson",
+        elevation=True,
         options={
             "avoid_features": avoid
         }
@@ -61,19 +62,22 @@ def find_bike_route(
 
     feature = routes["features"][0]
     geometry = feature["geometry"]["coordinates"]
-
     segments = feature["properties"]["segments"]
+
     distance = sum(seg["distance"] for seg in segments)
     duration = sum(seg["duration"] for seg in segments)
+    ascent = sum(seg.get("ascent", 0) for seg in segments)
+    descent = sum(seg.get("descent", 0) for seg in segments)
 
-    print(f"✓ Länge: {distance / 1000:.2f} km")
-    print(f"✓ Dauer: {duration / 60:.1f} Minuten")
+    print(f"✓ Länge: {distance/1000:.2f} km")
+    print(f"✓ Dauer: {duration/60:.1f} Minuten")
+    print(f"✓ Höhenmeter: +{ascent:.0f} m / -{descent:.0f} m")
 
-    return geometry, start_coords, end_coords, distance, duration
+    return geometry, start_coords, end_coords, distance, duration, ascent, descent
 
 
-# ===================== KARTE =====================
-def create_map(route, start, end, distance, duration, filename="route.html"):
+# ===================== KARTE MIT LEGENDE =====================
+def create_map(route, start, end, distance, duration, ascent, descent, filename="route.html"):
     m = folium.Map(location=[start[1], start[0]], zoom_start=13)
 
     folium.Marker(
@@ -88,26 +92,37 @@ def create_map(route, start, end, distance, duration, filename="route.html"):
         icon=folium.Icon(color="red", icon="flag", prefix="fa")
     ).add_to(m)
 
+    # ✅ KORREKT: funktioniert mit Höhenwerten
     folium.PolyLine(
-        [(lat, lon) for lon, lat in route],
+        [(p[1], p[0]) for p in route],
         weight=6,
         color="blue"
     ).add_to(m)
 
-    folium.map.Marker(
-        [start[1], start[0]],
-        icon=folium.DivIcon(
-            html=f"""
-            <div style="font-size: 14px; background: white; padding: 6px;
-                        border-radius: 6px; border: 1px solid gray;">
-            🚴 {distance/1000:.2f} km<br>
-            ⏱️ {duration/60:.1f} min
-            </div>
-            """
-        )
-    ).add_to(m)
+    legend_html = f"""
+    <div style="
+        position: fixed;
+        bottom: 30px;
+        left: 30px;
+        z-index: 9999;
+        background: white;
+        padding: 12px 14px;
+        border-radius: 10px;
+        box-shadow: 0 0 12px rgba(0,0,0,0.3);
+        font-size: 14px;
+        line-height: 1.4;
+    ">
+        <b>🚴 Fahrradrouten-Info</b><br><br>
+        📏 Strecke: <b>{distance/1000:.2f} km</b><br>
+        ⏱️ Dauer: <b>{duration/60:.1f} min</b><br>
+        ⛰️ Aufstieg: <b>{ascent:.0f} m</b><br>
+        ⬇️ Abstieg: <b>{descent:.0f} m</b>
+    </div>
+    """
 
+    m.get_root().html.add_child(folium.Element(legend_html))
     m.save(filename)
+
     print(f"✓ Karte gespeichert: {os.path.abspath(filename)}")
 
 
@@ -147,7 +162,7 @@ if __name__ == "__main__":
 
     print("\nBerechne Route...\n")
 
-    route, start_coords, end_coords, dist, dur = find_bike_route(
+    route, start_coords, end_coords, dist, dur, asc, desc = find_bike_route(
         start_name=start,
         end_name=end,
         bike_type=bike_type,
@@ -155,4 +170,4 @@ if __name__ == "__main__":
         avoid_steep_hills=avoid_hills
     )
 
-    create_map(route, start_coords, end_coords, dist, dur)
+    create_map(route, start_coords, end_coords, dist, dur, asc, desc)
