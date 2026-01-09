@@ -1,82 +1,120 @@
 import openrouteservice
-from openrouteservice import convert
 import folium
+import os
 
-# ================== API KEY ==================
+# ===================== API KEY =====================
 ORS_API_KEY = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjRlYmE4MmQyY2YzMzRiM2Q4ZTMzODhhNTIzOTkzNmRjIiwiaCI6Im11cm11cjY0In0="
-
 client = openrouteservice.Client(key=ORS_API_KEY)
 
-# ================== Geocoding ==================
-def geocode_place(name):
+
+# ===================== GEOCODING =====================
+def geocode_place(name: str):
     result = client.pelias_search(text=name)
     if not result["features"]:
         raise ValueError(f"Ort nicht gefunden: {name}")
 
-    coords = result["features"][0]["geometry"]["coordinates"]
-    address = result["features"][0]["properties"].get("label", name)
+    feature = result["features"][0]
+    coords = feature["geometry"]["coordinates"]  # (lon, lat)
+    label = feature["properties"].get("label", name)
 
-    # ORS: (lon, lat)
-    return coords, address
+    return coords, label
 
 
-# ================== Routing ==================
-def find_route_ors(start_name, end_name, profile="driving-car"):
-    print(f"Route: {start_name} → {end_name}")
+# ===================== FAHRRAD ROUTING =====================
+def find_bike_route(
+    start_name: str,
+    end_name: str,
+    bike_type: str = "regular",
+    avoid_highways: bool = True,
+    avoid_steep_hills: bool = False
+):
+    profile_map = {
+        "regular": "cycling-regular",
+        "road": "cycling-road",
+        "mtb": "cycling-mountain",
+        "ebike": "cycling-electric"
+    }
 
-    start_coords, start_addr = geocode_place(start_name)
-    end_coords, end_addr = geocode_place(end_name)
+    profile = profile_map.get(bike_type, "cycling-regular")
 
-    print("Start:", start_addr)
-    print("Ziel :", end_addr)
+    start_coords, start_label = geocode_place(start_name)
+    end_coords, end_label = geocode_place(end_name)
+
+    print("Start:", start_label)
+    print("Ziel :", end_label)
+    print("Profil:", profile)
+
+    avoid = []
+    if avoid_highways:
+        avoid.append("highways")
+    if avoid_steep_hills:
+        avoid.append("steep_hills")
 
     routes = client.directions(
         coordinates=[start_coords, end_coords],
         profile=profile,
-        format="geojson"
+        format="geojson",
+        options={
+            "avoid_features": avoid
+        }
     )
 
-    route_geom = routes["features"][0]["geometry"]["coordinates"]
-    summary = routes["features"][0]["properties"]["summary"]
+    feature = routes["features"][0]
+    geometry = feature["geometry"]["coordinates"]
 
-    distance_km = summary["distance"] / 1000
-    duration_min = summary["duration"] / 60
+    segments = feature["properties"]["segments"]
+    distance = sum(seg["distance"] for seg in segments)
+    duration = sum(seg["duration"] for seg in segments)
 
-    print(f"✓ Länge: {distance_km:.2f} km")
-    print(f"✓ Dauer: {duration_min:.1f} Minuten")
+    print(f"✓ Länge: {distance / 1000:.2f} km")
+    print(f"✓ Dauer: {duration / 60:.1f} Minuten")
 
-    return route_geom, start_coords, end_coords
+    return geometry, start_coords, end_coords, distance, duration
 
 
-# ================== Visualisierung ==================
-def plot_route(route, start, end):
+# ===================== KARTE =====================
+def create_map(route, start, end, distance, duration, filename="route.html"):
     m = folium.Map(location=[start[1], start[0]], zoom_start=13)
 
     folium.Marker(
-        location=[start[1], start[0]],
+        [start[1], start[0]],
         popup="Start",
-        icon=folium.Icon(color="green")
+        icon=folium.Icon(color="green", icon="bicycle", prefix="fa")
     ).add_to(m)
 
     folium.Marker(
-        location=[end[1], end[0]],
+        [end[1], end[0]],
         popup="Ziel",
-        icon=folium.Icon(color="red")
+        icon=folium.Icon(color="red", icon="flag", prefix="fa")
     ).add_to(m)
 
     folium.PolyLine(
-        locations=[(lat, lon) for lon, lat in route],
-        color="red",
-        weight=6
+        [(lat, lon) for lon, lat in route],
+        weight=6,
+        color="blue"
     ).add_to(m)
 
-    return m
+    folium.map.Marker(
+        [start[1], start[0]],
+        icon=folium.DivIcon(
+            html=f"""
+            <div style="font-size: 14px; background: white; padding: 6px;
+                        border-radius: 6px; border: 1px solid gray;">
+            🚴 {distance/1000:.2f} km<br>
+            ⏱️ {duration/60:.1f} min
+            </div>
+            """
+        )
+    ).add_to(m)
+
+    m.save(filename)
+    print(f"✓ Karte gespeichert: {os.path.abspath(filename)}")
 
 
-# ================== MAIN ==================
+# ===================== AUTOMATISCHER START =====================
 if __name__ == "__main__":
     print("=" * 60)
-    print("  OpenRouteService Routenplaner")
+    print(" OpenRouteService Fahrrad-Routenplaner")
     print("=" * 60)
 
     start = input("Startpunkt (Enter = Karlsruher Schloss): ").strip()
@@ -87,22 +125,34 @@ if __name__ == "__main__":
     if not end:
         end = "Hauptbahnhof Karlsruhe"
 
-    print("[1] Auto  [2] Zu Fuß  [3] Fahrrad")
-    choice = input("Verkehrsmittel (1–3, Enter = Auto): ").strip()
+    print("\nFahrradtyp:")
+    print("[1] Normal")
+    print("[2] Rennrad")
+    print("[3] Mountainbike")
+    print("[4] E-Bike")
 
-    profile_map = {
-        "1": "driving-car",
-        "2": "foot-walking",
-        "3": "cycling-regular"
-    }
-    profile = profile_map.get(choice, "driving-car")
+    choice = input("Wählen (1–4, Enter = Normal): ").strip()
+    bike_type = {
+        "1": "regular",
+        "2": "road",
+        "3": "mtb",
+        "4": "ebike"
+    }.get(choice, "regular")
 
-    route, start_coords, end_coords = find_route_ors(
-        start, end, profile
+    avoid_highways = input("Hauptstraßen meiden? (j/n, Enter = ja): ").strip().lower()
+    avoid_highways = avoid_highways != "n"
+
+    avoid_hills = input("Starke Steigungen meiden? (j/n, Enter = nein): ").strip().lower()
+    avoid_hills = avoid_hills == "j"
+
+    print("\nBerechne Route...\n")
+
+    route, start_coords, end_coords, dist, dur = find_bike_route(
+        start_name=start,
+        end_name=end,
+        bike_type=bike_type,
+        avoid_highways=avoid_highways,
+        avoid_steep_hills=avoid_hills
     )
 
-    map_ = plot_route(route, start_coords, end_coords)
-    map_.save("route.html")
-
-    print("\n✓ Karte gespeichert als route.html")
-    print("✓ Im Browser öffnen")
+    create_map(route, start_coords, end_coords, dist, dur)
