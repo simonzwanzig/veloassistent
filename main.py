@@ -1,84 +1,115 @@
 import openrouteservice
 import folium
-import os
+import requests
+import time
 
-# ===================== API KEY =====================
+# ==========================
+# KONFIGURATION
+# ==========================
+
 ORS_API_KEY = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjRlYmE4MmQyY2YzMzRiM2Q4ZTMzODhhNTIzOTkzNmRjIiwiaCI6Im11cm11cjY0In0="
-client = openrouteservice.Client(key=ORS_API_KEY)
 
+POI_RADIUS_METERS = 150
 
-# ===================== GEOCODING =====================
-def geocode_place(name: str):
-    result = client.pelias_search(text=name)
-    if not result["features"]:
-        raise ValueError(f"Ort nicht gefunden: {name}")
+# ==========================
+# ROUTING (OpenRouteService)
+# ==========================
 
-    feature = result["features"][0]
-    coords = feature["geometry"]["coordinates"]  # (lon, lat)
-    label = feature["properties"].get("label", name)
+def find_bike_route(start_name, end_name):
+    client = openrouteservice.Client(key=ORS_API_KEY)
 
-    return coords, label
+    start = client.pelias_search(start_name)["features"][0]["geometry"]["coordinates"]
+    end = client.pelias_search(end_name)["features"][0]["geometry"]["coordinates"]
 
-
-# ===================== FAHRRAD ROUTING =====================
-def find_bike_route(
-    start_name: str,
-    end_name: str,
-    bike_type: str = "regular",
-    avoid_highways: bool = True,
-    avoid_steep_hills: bool = False
-):
-    profile_map = {
-        "regular": "cycling-regular",
-        "road": "cycling-road",
-        "mtb": "cycling-mountain",
-        "ebike": "cycling-electric"
-    }
-
-    profile = profile_map.get(bike_type, "cycling-regular")
-
-    start_coords, start_label = geocode_place(start_name)
-    end_coords, end_label = geocode_place(end_name)
-
-    print("Start:", start_label)
-    print("Ziel :", end_label)
-    print("Profil:", profile)
-
-    avoid = []
-    if avoid_highways:
-        avoid.append("highways")
-    if avoid_steep_hills:
-        avoid.append("steep_hills")
-
-    routes = client.directions(
-        coordinates=[start_coords, end_coords],
-        profile=profile,
+    route = client.directions(
+        coordinates=[start, end],
+        profile="cycling-regular",
         format="geojson",
-        elevation=True,
-        options={
-            "avoid_features": avoid
-        }
+        elevation=True
     )
 
-    feature = routes["features"][0]
-    geometry = feature["geometry"]["coordinates"]
-    segments = feature["properties"]["segments"]
+    feature = route["features"][0]
+    coords = feature["geometry"]["coordinates"]
+    summary = feature["properties"]["summary"]
+    ascent = feature["properties"]["ascent"]
+    descent = feature["properties"]["descent"]
 
-    distance = sum(seg["distance"] for seg in segments)
-    duration = sum(seg["duration"] for seg in segments)
-    ascent = sum(seg.get("ascent", 0) for seg in segments)
-    descent = sum(seg.get("descent", 0) for seg in segments)
+    print(f"✓ Distanz: {summary['distance']/1000:.2f} km")
+    print(f"✓ Dauer: {summary['duration']/60:.1f} min")
+    print(f"✓ Aufstieg: {ascent:.0f} m | Abstieg: {descent:.0f} m")
 
-    print(f"✓ Länge: {distance/1000:.2f} km")
-    print(f"✓ Dauer: {duration/60:.1f} Minuten")
-    print(f"✓ Höhenmeter: +{ascent:.0f} m / -{descent:.0f} m")
+    return (
+        coords,
+        start,
+        end,
+        summary["distance"],
+        summary["duration"],
+        ascent,
+        descent
+    )
 
-    return geometry, start_coords, end_coords, distance, duration, ascent, descent
+# ==========================
+# POIs (Overpass API)
+# ==========================
+OVERPASS_URLS = [
+    "https://overpass-api.de/api/interpreter",
+    "https://overpass.kumi.systems/api/interpreter",
+    "https://overpass.nchc.org.tw/api/interpreter"
+]
 
+def route_bbox(route, buffer_deg=0.001):
+    lons = [p[0] for p in route]
+    lats = [p[1] for p in route]
+    return (
+        min(lons) - buffer_deg,
+        min(lats) - buffer_deg,
+        max(lons) + buffer_deg,
+        max(lats) + buffer_deg
+    )
 
-# ===================== KARTE MIT LEGENDE =====================
-def create_map(route, start, end, distance, duration, ascent, descent, filename="route.html"):
+def post_overpass(query):
+    last_error = None
+    for url in OVERPASS_URLS:
+        try:
+            r = requests.post(url, data=query, timeout=60)
+            r.raise_for_status()
+            return r.json()
+        except Exception as e:
+            print(f"Overpass Timeout bei {url}")
+            last_error = e
+    raise last_error
+
+def get_pois_along_route(route):
+    west, south, east, north = route_bbox(route)
+
+    query = f"""
+    [out:json][timeout:60];
+    (
+      node({south},{west},{north},{east})["amenity"="drinking_water"];
+      node({south},{west},{north},{east})["amenity"="toilets"];
+      node({south},{west},{north},{east})["amenity"="cafe"];
+      node({south},{west},{north},{east})["shop"="bakery"];
+    );
+    out body;
+    """
+
+    data = post_overpass(query)
+    pois = data.get("elements", [])
+    print(f"✓ Gefundene POIs: {len(pois)}")
+    return pois
+
+# ==========================
+# KARTE (Folium)
+# ==========================
+
+def create_map(route, start, end, dist, dur, asc, desc, pois):
     m = folium.Map(location=[start[1], start[0]], zoom_start=13)
+
+    folium.PolyLine(
+    [(p[1], p[0]) for p in route],
+    weight=6,
+    color="blue"
+    ).add_to(m)
 
     folium.Marker(
         [start[1], start[0]],
@@ -92,82 +123,53 @@ def create_map(route, start, end, distance, duration, ascent, descent, filename=
         icon=folium.Icon(color="red", icon="flag", prefix="fa")
     ).add_to(m)
 
-    # ✅ KORREKT: funktioniert mit Höhenwerten
-    folium.PolyLine(
-        [(p[1], p[0]) for p in route],
-        weight=6,
-        color="blue"
-    ).add_to(m)
+    # POIs
+    for poi in pois:
+        tags = poi.get("tags", {})
+        name = tags.get("name", "POI")
+        folium.Marker(
+            [poi["lat"], poi["lon"]],
+            popup=name,
+            icon=folium.Icon(color="blue", icon="info-sign")
+        ).add_to(m)
 
-    legend_html = f"""
+    # Info-Box
+    info = f"""
     <div style="
         position: fixed;
-        bottom: 30px;
-        left: 30px;
+        bottom: 20px;
+        left: 20px;
         z-index: 9999;
         background: white;
-        padding: 12px 14px;
-        border-radius: 10px;
-        box-shadow: 0 0 12px rgba(0,0,0,0.3);
-        font-size: 14px;
-        line-height: 1.4;
-    ">
-        <b>🚴 Fahrradrouten-Info</b><br><br>
-        📏 Strecke: <b>{distance/1000:.2f} km</b><br>
-        ⏱️ Dauer: <b>{duration/60:.1f} min</b><br>
-        ⛰️ Aufstieg: <b>{ascent:.0f} m</b><br>
-        ⬇️ Abstieg: <b>{descent:.0f} m</b>
+        padding: 10px;
+        border: 2px solid grey;
+        font-size: 14px;">
+        <b>Distanz:</b> {dist/1000:.2f} km<br>
+        <b>Dauer:</b> {dur/60:.1f} min<br>
+        <b>Aufstieg:</b> {asc:.0f} m<br>
+        <b>Abstieg:</b> {desc:.0f} m
     </div>
     """
 
-    m.get_root().html.add_child(folium.Element(legend_html))
-    m.save(filename)
+    m.get_root().html.add_child(folium.Element(info))
+    m.save("route.html")
+    print("✓ Karte gespeichert: route.html")
 
-    print(f"✓ Karte gespeichert: {os.path.abspath(filename)}")
+# ==========================
+# AUTOMATISCHER START
+# ==========================
 
-
-# ===================== AUTOMATISCHER START =====================
 if __name__ == "__main__":
-    print("=" * 60)
-    print(" OpenRouteService Fahrrad-Routenplaner")
-    print("=" * 60)
+    print("=== Fahrrad-Routenplaner ===\n")
 
-    start = input("Startpunkt (Enter = Karlsruher Schloss): ").strip()
-    if not start:
-        start = "Karlsruher Schloss"
-
-    end = input("Zielpunkt (Enter = Hbf Karlsruhe): ").strip()
-    if not end:
-        end = "Hauptbahnhof Karlsruhe"
-
-    print("\nFahrradtyp:")
-    print("[1] Normal")
-    print("[2] Rennrad")
-    print("[3] Mountainbike")
-    print("[4] E-Bike")
-
-    choice = input("Wählen (1–4, Enter = Normal): ").strip()
-    bike_type = {
-        "1": "regular",
-        "2": "road",
-        "3": "mtb",
-        "4": "ebike"
-    }.get(choice, "regular")
-
-    avoid_highways = input("Hauptstraßen meiden? (j/n, Enter = ja): ").strip().lower()
-    avoid_highways = avoid_highways != "n"
-
-    avoid_hills = input("Starke Steigungen meiden? (j/n, Enter = nein): ").strip().lower()
-    avoid_hills = avoid_hills == "j"
+    start = input("Start (Enter = Karlsruher Schloss): ").strip() or "Karlsruher Schloss"
+    end = input("Ziel (Enter = Hauptbahnhof Karlsruhe): ").strip() or "Hauptbahnhof Karlsruhe"
 
     print("\nBerechne Route...\n")
 
-    route, start_coords, end_coords, dist, dur, asc, desc = find_bike_route(
-        start_name=start,
-        end_name=end,
-        bike_type=bike_type,
-        avoid_highways=avoid_highways,
-        avoid_steep_hills=avoid_hills
-    )
+    route, start_c, end_c, dist, dur, asc, desc = find_bike_route(start, end)
 
-    create_map(route, start_coords, end_coords, dist, dur, asc, desc)
+    print("\nSuche POIs entlang der Route...\n")
+    pois = get_pois_along_route(route)
+
+    create_map(route, start_c, end_c, dist, dur, asc, desc, pois)
