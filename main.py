@@ -97,7 +97,6 @@ def create_map(route, start, end, dist, dur, asc, desc):
         "🛠️ Repairstation",
         "🅿️ Fahrradständer",
         "🚉 Bahnhof"
-
     ]
 
     poi_groups = {}
@@ -127,29 +126,46 @@ def create_map(route, start, end, dist, dur, asc, desc):
     m.get_root().html.add_child(
     Element(f"<script>const ROUTE_DATA = {json.dumps(route_latlon)};</script>")
     )
-
-
     m.get_root().html.add_child(
         Element('<script src="pois.js"></script>')
     )
+    form = """
+    <form method="POST"
+    style="
+    position:fixed;
+    top:10px;
+    left:10px;
+    z-index:20000;
+    background:white;
+    padding:10px;
+    border:2px solid grey;
+    box-shadow:2px 2px 6px rgba(0,0,0,0.3);
+    ">
+    <b>🚲 Route berechnen</b><br><br>
+
+    Start:<br>
+    <input id="start" name="start" placeholder="Aachen"><br><br>
+
+    Ziel:<br>
+    <input id="end" name="end" placeholder="Maastricht"><br><br>
+
+    <button type="button" onclick="swap()">↔ Tauschen</button>
+    <button type="submit">Route berechnen</button>
+    </form>
+
+    <script>
+    function swap() {
+    const s = document.getElementById("start");
+    const e = document.getElementById("end");
+    const tmp = s.value;
+    s.value = e.value;
+    e.value = tmp;
+    }
+    </script>
+    """
+
     folium.LayerControl(collapsed=False).add_to(m)
 
+    m.get_root().html.add_child(folium.Element(form))
 
     m.save("route.html")
-    print("✓ route.html erstellt")
-
-
-# ==========================
-# AUTOMATISCHER START
-# ==========================
-
-if __name__ == "__main__":
-    print("=== Fahrrad-Routenplaner ===\n")
-
-    start = input("Start (Enter = Aachen): ").strip() or "Aachen"
-    end = input("Ziel (Enter = Maastricht): ").strip() or "Maastricht"
-
-    print("\nBerechne Route...\n")
-
-    route, s, e, d, t, a, de = find_bike_route(start, end)
-    create_map(route, s, e, d, t, a, de)
