@@ -88,7 +88,19 @@ def create_map(route, start, end, dist, dur, asc, desc):
         "🚻 Toiletten",
         "☕ Café",
         "🚲 Fahrradladen",
-        "🥐 Bäckerei"
+        "🥐 Bäckerei",
+        "Luftpumpe",
+        "Hostel",
+        "Schutzhütte",
+        "Campingplatz",
+        "Supermarkt",
+        "Bank",
+        "Waschsalon",
+        "Friedhof",
+        "Repairstation",
+        "Fahrradständer",
+        "Bahnhof"
+
     ]
 
     poi_groups = {}
@@ -115,6 +127,9 @@ def create_map(route, start, end, dist, dur, asc, desc):
     </div>
     """
     m.get_root().html.add_child(folium.Element(info))
+    m.get_root().html.add_child(
+    Element(f"<script>const ROUTE_DATA = {json.dumps(route_latlon)};</script>")
+    )
     map_id = m.get_name()
 
     # ==========================
@@ -127,73 +142,81 @@ def create_map(route, start, end, dist, dur, asc, desc):
     <script>
     document.addEventListener("DOMContentLoaded", function () {
 
-        const map = Object.values(window).find(
-            v => v instanceof L.Map
-        );
-
+        // Leaflet-Map von Folium finden
+        const map = Object.values(window).find(v => v instanceof L.Map);
         if (!map) {
             console.error("Leaflet map not found");
             return;
         }
 
+        // Route (lat, lon) – kommt von Python als ROUTE_DATA
         const route = ROUTE_DATA;
-        const MAX_DIST = 250;
+
         const loadedLayers = {};
 
-        function minDistanceToRoute(latlng) {
-            let min = Infinity;
-            route.forEach(p => {
-                const d = latlng.distanceTo(L.latLng(p[0], p[1]));
-                if (d < min) min = d;
-            });
-            return min;
-        }
+        // Overpass-Query: NUR POIs im Radius entlang der Route
+        function overpassQueryAlongRoute(route, radius, tag, value) {
 
-        function overpassQuery(tag, value, bbox) {
+            const points = route
+                .filter((_, i) => i % 10 === 0) // ca. alle 200 m
+                .map(p =>
+                    `node(around:${radius},${p[0]},${p[1]})["${tag}"="${value}"];`
+                )
+                .join("\\n");
+
             return `
-            [out:json][timeout:25];
-            (
-            node(${bbox})["${tag}"="${value}"];
-            );
-            out body;
-            `;
+    [out:json][timeout:45];
+    (
+    ${points}
+    );
+    out body;
+    `;
         }
 
-        map.on('overlayadd', function(e) {
+        map.on("overlayadd", function (e) {
+
             const name = e.name;
             if (loadedLayers[name]) return;
             loadedLayers[name] = true;
 
-            let tag=null, value=null;
+            let tag = null;
+            let value = null;
 
-            if (name==="💧 Trinkwasser") { tag="amenity"; value="drinking_water"; }
-            if (name==="🚻 Toiletten") { tag="amenity"; value="toilets"; }
-            if (name==="☕ Café") { tag="amenity"; value="cafe"; }
-            if (name==="🚲 Fahrradladen") { tag="shop"; value="bicycle"; }
-            if (name==="🥐 Bäckerei") { tag="shop"; value="bakery"; }
+            if (name === "💧 Trinkwasser") { tag = "amenity"; value = "drinking_water"; }
+            if (name === "🚻 Toiletten")  { tag = "amenity"; value = "toilets"; }
+            if (name === "☕ Café")       { tag = "amenity"; value = "cafe"; }
+            if (name === "🚲 Fahrradladen") { tag = "shop"; value = "bicycle"; }
+            if (name === "🥐 Bäckerei")   { tag = "shop"; value = "bakery"; }
+            if (name === "Luftpumpe")   { tag = "amenity"; value = "compressed_air"; }
+            if (name === "Hostel")   { tag = "tourism"; value = "hostel"; }
+            if (name === "Schutzhütte")   { tag = "tourism"; value = "wilderness_hut"; }
+            if (name === "Campingplatz")   { tag = "tourism"; value = "camp_site"; }
+            if (name === "Supermarkt")   { tag = "shop"; value = "supermarket"; }
+            if (name === "Bank")   { tag = "amenity"; value = "atm"; }
+            if (name === "Waschsalon")   { tag = "shop"; value = "laundry"; }
+            if (name === "Friedhof")   { tag = "amenity"; value = "graveyard"; }
+            if (name === "Repairstation")   { tag = "amenity"; value = "bicyle_repair_station"; }
+            if (name === "Fahrradständer")   { tag = "amenity"; value = "bicycle_parking"; }
+            if (name === "Bahnhof")   { tag = "railway"; value = "station"; }
 
             if (!tag) return;
 
-            const b = map.getBounds();
-            const bbox = `${b.getSouth()},${b.getWest()},${b.getNorth()},${b.getEast()}`;
-
             fetch("https://overpass-api.de/api/interpreter", {
                 method: "POST",
-                body: overpassQuery(tag, value, bbox)
+                headers: { "Content-Type": "text/plain" },
+                body: overpassQueryAlongRoute(route, 250, tag, value)
             })
             .then(r => r.json())
             .then(data => {
                 data.elements.forEach(el => {
                     if (!el.lat || !el.lon) return;
-                    const p = L.latLng(el.lat, el.lon);
-                    const d = minDistanceToRoute(p);
-                    if (d <= MAX_DIST) {
-                        L.marker(p)
+
+                    L.marker([el.lat, el.lon])
                         .addTo(e.layer)
-                        .bindPopup(`<b>${name}</b><br>${Math.round(d)} m von Route`);
-                    }
+                        .bindPopup(`<b>${name}</b>`);
                 });
-            });
+            })
+            .catch(err => console.error("Overpass error:", err));
         });
 
     });
