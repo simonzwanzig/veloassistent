@@ -1,3 +1,6 @@
+from dotenv import load_dotenv
+load_dotenv()
+
 from flask import Flask, request, send_file, make_response
 from main import find_bike_route, create_map
 

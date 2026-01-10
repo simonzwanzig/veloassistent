@@ -3,20 +3,20 @@ import openrouteservice
 import folium
 from folium import Element
 import json
-
+from dotenv import load_dotenv
 
 # ==========================
 # KONFIGURATION
 # ==========================
 
 ORS_API_KEY = os.getenv("ORS_API_KEY")
-
+client = openrouteservice.Client(key=ORS_API_KEY)
 # ==========================
 # ROUTING (OpenRouteService)
 # ==========================
 
 def find_bike_route(start_name, end_name):
-    client = openrouteservice.Client(key=ORS_API_KEY)
+
 
     start = client.pelias_search(start_name)["features"][0]["geometry"]["coordinates"]
     end = client.pelias_search(end_name)["features"][0]["geometry"]["coordinates"]
