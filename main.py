@@ -59,9 +59,6 @@ def create_map(route, start, end, dist, dur, asc, desc):
     route_latlon = [(p[1], p[0]) for p in route]
 
     m = folium.Map(location=[start[1], start[0]], zoom_start=13)
-    map_name = m.get_name()
-
-    route_latlon = [(p[1], p[0]) for p in route]
 
     folium.PolyLine(
     route_latlon,
@@ -130,14 +127,12 @@ def create_map(route, start, end, dist, dur, asc, desc):
     m.get_root().html.add_child(
     Element(f"<script>const ROUTE_DATA = {json.dumps(route_latlon)};</script>")
     )
-    map_id = m.get_name()
-    map_name = m.get_name()
+
 
     m.get_root().html.add_child(
         Element('<script src="pois.js"></script>')
     )
     folium.LayerControl(collapsed=False).add_to(m)
-    route_latlon = [(p[1], p[0]) for p in route]
 
 
     m.save("route.html")

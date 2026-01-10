@@ -9,7 +9,7 @@ document.addEventListener("DOMContentLoaded", function () {
         return;
     }
 
-    // Route kommt aus Python (ROUTE_DATA wird dort ersetzt)
+    // Route kommt aus Python
     const route = ROUTE_DATA;
 
     const loadedLayers = {};
@@ -26,27 +26,26 @@ document.addEventListener("DOMContentLoaded", function () {
 
     .emoji-pin .pin {
         position: relative;
-        width: 30px;
-        height: 42px;
+        width: 28px;
+        height: 40px;
     }
 
     .emoji-pin .pin-circle {
-        width: 30px;
-        height: 30px;
+        width: 28px;
+        height: 28px;
         background: white;
         border-radius: 50%;
-        border: 2px solid #555;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 16px;
+        font-size: 16px; 
         line-height: 1;
     }
 
     .emoji-pin .pin-tip {
         position: absolute;
         left: 50%;
-        top: 28px;
+        top: 26px;
         transform: translateX(-50%);
         width: 0;
         height: 0;
@@ -69,9 +68,9 @@ document.addEventListener("DOMContentLoaded", function () {
                     <div class="pin-tip"></div>
                 </div>
             `,
-            iconSize: [30, 42],
-            iconAnchor: [15, 42],
-            popupAnchor: [0, -36]
+            iconSize: [28, 40],
+            iconAnchor: [14, 40],
+            popupAnchor: [0, -34]
         });
     }
 
