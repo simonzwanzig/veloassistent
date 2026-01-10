@@ -1,17 +1,83 @@
 document.addEventListener("DOMContentLoaded", function () {
 
+    // ==========================
     // Leaflet-Map von Folium finden
+    // ==========================
     const map = Object.values(window).find(v => v instanceof L.Map);
     if (!map) {
         console.error("Leaflet map not found");
         return;
     }
 
-    // Route kommt aus Python
+    // Route kommt aus Python (ROUTE_DATA wird dort ersetzt)
     const route = ROUTE_DATA;
 
     const loadedLayers = {};
 
+    // ==========================
+    // CSS: weiße Emoji-Stecknadel
+    // ==========================
+    const style = document.createElement("style");
+    style.innerHTML = `
+    .emoji-pin {
+        background: none;
+        border: none;
+    }
+
+    .emoji-pin .pin {
+        position: relative;
+        width: 30px;
+        height: 42px;
+    }
+
+    .emoji-pin .pin-circle {
+        width: 30px;
+        height: 30px;
+        background: white;
+        border-radius: 50%;
+        border: 2px solid #555;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        line-height: 1;
+    }
+
+    .emoji-pin .pin-tip {
+        position: absolute;
+        left: 50%;
+        top: 28px;
+        transform: translateX(-50%);
+        width: 0;
+        height: 0;
+        border-left: 6px solid transparent;
+        border-right: 6px solid transparent;
+        border-top: 10px solid white;
+    }
+    `;
+    document.head.appendChild(style);
+
+    // ==========================
+    // Emoji-Pin Icon
+    // ==========================
+    function emojiPin(emoji) {
+        return L.divIcon({
+            className: "emoji-pin",
+            html: `
+                <div class="pin">
+                    <div class="pin-circle">${emoji}</div>
+                    <div class="pin-tip"></div>
+                </div>
+            `,
+            iconSize: [30, 42],
+            iconAnchor: [15, 42],
+            popupAnchor: [0, -36]
+        });
+    }
+
+    // ==========================
+    // Overpass-Query entlang Route
+    // ==========================
     function overpassQueryAlongRoute(route, radius, tag, value) {
 
         const points = route
@@ -30,6 +96,9 @@ out body;
         `;
     }
 
+    // ==========================
+    // POIs laden beim Aktivieren eines Layers
+    // ==========================
     map.on("overlayadd", function (e) {
 
         const name = e.name;
@@ -68,17 +137,15 @@ out body;
             data.elements.forEach(el => {
                 if (!el.lat || !el.lon) return;
 
-                L.marker([el.lat, el.lon], {
-                    icon: L.divIcon({
-                        html: `<div style="font-size:20px">${name.split(" ")[0]}</div>`,
-                        className: "",
-                        iconSize: [24, 24]
-                    })
-                })
+                L.marker(
+                    [el.lat, el.lon],
+                    { icon: emojiPin(name.split(" ")[0]) }
+                )
                 .addTo(e.layer)
                 .bindPopup(`<b>${name}</b>`);
             });
         })
         .catch(err => console.error("Overpass error:", err));
     });
+
 });
