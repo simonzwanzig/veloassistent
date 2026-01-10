@@ -1,7 +1,8 @@
 import openrouteservice
 import folium
-import requests
-import time
+from folium import Element
+import json
+
 
 # ==========================
 # KONFIGURATION
@@ -9,7 +10,6 @@ import time
 
 ORS_API_KEY = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjRlYmE4MmQyY2YzMzRiM2Q4ZTMzODhhNTIzOTkzNmRjIiwiaCI6Im11cm11cjY0In0="
 
-POI_RADIUS_METERS = 150
 
 # ==========================
 # ROUTING (OpenRouteService)
@@ -48,65 +48,23 @@ def find_bike_route(start_name, end_name):
         descent
     )
 
-# ==========================
-# POIs (Overpass API)
-# ==========================
-OVERPASS_URLS = [
-    "https://overpass-api.de/api/interpreter",
-    "https://overpass.kumi.systems/api/interpreter",
-    "https://overpass.nchc.org.tw/api/interpreter"
-]
-
-def route_bbox(route, buffer_deg=0.001):
-    lons = [p[0] for p in route]
-    lats = [p[1] for p in route]
-    return (
-        min(lons) - buffer_deg,
-        min(lats) - buffer_deg,
-        max(lons) + buffer_deg,
-        max(lats) + buffer_deg
-    )
-
-def post_overpass(query):
-    last_error = None
-    for url in OVERPASS_URLS:
-        try:
-            r = requests.post(url, data=query, timeout=60)
-            r.raise_for_status()
-            return r.json()
-        except Exception as e:
-            print(f"Overpass Timeout bei {url}")
-            last_error = e
-    raise last_error
-
-def get_pois_along_route(route):
-    west, south, east, north = route_bbox(route)
-
-    query = f"""
-    [out:json][timeout:60];
-    (
-      node({south},{west},{north},{east})["amenity"="drinking_water"];
-      node({south},{west},{north},{east})["amenity"="toilets"];
-      node({south},{west},{north},{east})["amenity"="cafe"];
-      node({south},{west},{north},{east})["shop"="bakery"];
-    );
-    out body;
-    """
-
-    data = post_overpass(query)
-    pois = data.get("elements", [])
-    print(f"✓ Gefundene POIs: {len(pois)}")
-    return pois
 
 # ==========================
 # KARTE (Folium)
 # ==========================
 
-def create_map(route, start, end, dist, dur, asc, desc, pois):
+def create_map(route, start, end, dist, dur, asc, desc):
+
+    # lon,lat → lat,lon
+    route_latlon = [(p[1], p[0]) for p in route]
+
     m = folium.Map(location=[start[1], start[0]], zoom_start=13)
+    map_name = m.get_name()
+
+    route_latlon = [(p[1], p[0]) for p in route]
 
     folium.PolyLine(
-    [(p[1], p[0]) for p in route],
+    route_latlon,
     weight=6,
     color="blue"
     ).add_to(m)
@@ -123,15 +81,21 @@ def create_map(route, start, end, dist, dur, asc, desc, pois):
         icon=folium.Icon(color="red", icon="flag", prefix="fa")
     ).add_to(m)
 
-    # POIs
-    for poi in pois:
-        tags = poi.get("tags", {})
-        name = tags.get("name", "POI")
-        folium.Marker(
-            [poi["lat"], poi["lon"]],
-            popup=name,
-            icon=folium.Icon(color="blue", icon="info-sign")
-        ).add_to(m)
+    # POI-Layer (leer!)
+
+    poi_layers = [
+        "💧 Trinkwasser",
+        "🚻 Toiletten",
+        "☕ Café",
+        "🚲 Fahrradladen",
+        "🥐 Bäckerei"
+    ]
+
+    poi_groups = {}
+    for name in poi_layers:
+        fg = folium.FeatureGroup(name=name, show=False)
+        fg.add_to(m)
+        poi_groups[name] = fg
 
     # Info-Box
     info = f"""
@@ -150,10 +114,101 @@ def create_map(route, start, end, dist, dur, asc, desc, pois):
         <b>Abstieg:</b> {desc:.0f} m
     </div>
     """
-
     m.get_root().html.add_child(folium.Element(info))
+    map_id = m.get_name()
+
+    # ==========================
+    # JavaScript (Lazy POIs + 250 m)
+    # ==========================
+
+    map_name = m.get_name()
+
+    js = """
+    <script>
+    document.addEventListener("DOMContentLoaded", function () {
+
+        const map = Object.values(window).find(
+            v => v instanceof L.Map
+        );
+
+        if (!map) {
+            console.error("Leaflet map not found");
+            return;
+        }
+
+        const route = ROUTE_DATA;
+        const MAX_DIST = 250;
+        const loadedLayers = {};
+
+        function minDistanceToRoute(latlng) {
+            let min = Infinity;
+            route.forEach(p => {
+                const d = latlng.distanceTo(L.latLng(p[0], p[1]));
+                if (d < min) min = d;
+            });
+            return min;
+        }
+
+        function overpassQuery(tag, value, bbox) {
+            return `
+            [out:json][timeout:25];
+            (
+            node(${bbox})["${tag}"="${value}"];
+            );
+            out body;
+            `;
+        }
+
+        map.on('overlayadd', function(e) {
+            const name = e.name;
+            if (loadedLayers[name]) return;
+            loadedLayers[name] = true;
+
+            let tag=null, value=null;
+
+            if (name==="💧 Trinkwasser") { tag="amenity"; value="drinking_water"; }
+            if (name==="🚻 Toiletten") { tag="amenity"; value="toilets"; }
+            if (name==="☕ Café") { tag="amenity"; value="cafe"; }
+            if (name==="🚲 Fahrradladen") { tag="shop"; value="bicycle"; }
+            if (name==="🥐 Bäckerei") { tag="shop"; value="bakery"; }
+
+            if (!tag) return;
+
+            const b = map.getBounds();
+            const bbox = `${b.getSouth()},${b.getWest()},${b.getNorth()},${b.getEast()}`;
+
+            fetch("https://overpass-api.de/api/interpreter", {
+                method: "POST",
+                body: overpassQuery(tag, value, bbox)
+            })
+            .then(r => r.json())
+            .then(data => {
+                data.elements.forEach(el => {
+                    if (!el.lat || !el.lon) return;
+                    const p = L.latLng(el.lat, el.lon);
+                    const d = minDistanceToRoute(p);
+                    if (d <= MAX_DIST) {
+                        L.marker(p)
+                        .addTo(e.layer)
+                        .bindPopup(`<b>${name}</b><br>${Math.round(d)} m von Route`);
+                    }
+                });
+            });
+        });
+
+    });
+    </script>
+    """
+
+    js = js.replace("MAP_NAME", map_name)
+    folium.LayerControl(collapsed=False).add_to(m)
+    route_latlon = [(p[1], p[0]) for p in route]
+    js = js.replace("ROUTE_DATA", json.dumps(route_latlon))
+    m.get_root().html.add_child(Element(js))
+
     m.save("route.html")
-    print("✓ Karte gespeichert: route.html")
+    print("✓ route.html erstellt")
+
 
 # ==========================
 # AUTOMATISCHER START
@@ -167,9 +222,5 @@ if __name__ == "__main__":
 
     print("\nBerechne Route...\n")
 
-    route, start_c, end_c, dist, dur, asc, desc = find_bike_route(start, end)
-
-    print("\nSuche POIs entlang der Route...\n")
-    pois = get_pois_along_route(route)
-
-    create_map(route, start_c, end_c, dist, dur, asc, desc, pois)
+    route, s, e, d, t, a, de = find_bike_route(start, end)
+    create_map(route, s, e, d, t, a, de)
