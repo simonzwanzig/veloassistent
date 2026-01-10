@@ -12,9 +12,9 @@ def index():
     end = request.form.get("end", "Maastricht")
 
     route, s, e, d, t, a, de = find_bike_route(start, end)
-    create_map(route, s, e, d, t, a, de)
+    create_map(route, s, e, d, t, a, de, start, end)
 
-    response = make_response(send_file("route.html"))
+    return send_file("route.html")
     response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
     response.headers["Pragma"] = "no-cache"
     response.headers["Expires"] = "0"
