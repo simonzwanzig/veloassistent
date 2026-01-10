@@ -1,0 +1,5 @@
+flask>=2.2
+folium>=0.14
+openrouteservice>=2.3
+requests>=2.28
+python-dotenv>=1.0  

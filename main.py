@@ -1,3 +1,4 @@
+import os
 import openrouteservice
 import folium
 from folium import Element
@@ -8,8 +9,7 @@ import json
 # KONFIGURATION
 # ==========================
 
-ORS_API_KEY = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjRlYmE4MmQyY2YzMzRiM2Q4ZTMzODhhNTIzOTkzNmRjIiwiaCI6Im11cm11cjY0In0="
-
+ORS_API_KEY = os.getenv("ORS_API_KEY")
 
 # ==========================
 # ROUTING (OpenRouteService)
@@ -127,7 +127,7 @@ def create_map(route, start, end, dist, dur, asc, desc):
     Element(f"<script>const ROUTE_DATA = {json.dumps(route_latlon)};</script>")
     )
     m.get_root().html.add_child(
-        Element('<script src="pois.js"></script>')
+        Element('<script src="/static/pois.js"></script>')
     )
     form = """
     <form method="POST"
