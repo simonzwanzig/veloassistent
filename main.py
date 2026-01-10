@@ -189,7 +189,7 @@ def create_map(route, start, end, dist, dur, asc, desc):
             if (name === "🥐 Bäckerei")   { tag = "shop"; value = "bakery"; }
             if (name === "💨 Luftpumpe")   { tag = "amenity"; value = "compressed_air"; }
             if (name === "🏠 Hostel")   { tag = "tourism"; value = "hostel"; }
-            if (name === "⌂ Schutzhütte")   { tag = "tourism"; value = "wilderness_hut"; }
+            if (name === "🛏️ Schutzhütte")   { tag = "tourism"; value = "wilderness_hut"; }
             if (name === "🏕️ Campingplatz")   { tag = "tourism"; value = "camp_site"; }
             if (name === "🛒 Supermarkt")   { tag = "shop"; value = "supermarket"; }
             if (name === "🏧 Bank")   { tag = "amenity"; value = "atm"; }
