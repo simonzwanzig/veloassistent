@@ -1,0 +1,18 @@
+drinking_water x
+supermarket x
+graveyard x
+camp_site  x
+wilderness_hut x
+hostel x
+cafe x
+compressed_airx
+toilets x
+atm xx
+bicycle_repair_stationx
+bicycle_parkingx
+
+charging_station
+
+shop
+    bicycle x
+

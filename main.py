@@ -89,17 +89,17 @@ def create_map(route, start, end, dist, dur, asc, desc):
         "☕ Café",
         "🚲 Fahrradladen",
         "🥐 Bäckerei",
-        "Luftpumpe",
-        "Hostel",
-        "Schutzhütte",
-        "Campingplatz",
-        "Supermarkt",
-        "Bank",
-        "Waschsalon",
-        "Friedhof",
-        "Repairstation",
-        "Fahrradständer",
-        "Bahnhof"
+        "💨 Luftpumpe",
+        "🏠 Hostel",
+        "🛏️ Schutzhütte",
+        "⛺ Campingplatz",
+        "🛒 Supermarkt",
+        "🏧 Bank",
+        "🧺 Waschsalon",
+        "💧 Friedhof",
+        "🛠️ Repairstation",
+        "🅿️ Fahrradständer",
+        "🚉 Bahnhof"
 
     ]
 
@@ -133,7 +133,7 @@ def create_map(route, start, end, dist, dur, asc, desc):
     map_id = m.get_name()
 
     # ==========================
-    # JavaScript (Lazy POIs + 250 m)
+    # JavaScript (POIs in 250m Radius abfragen)
     # ==========================
 
     map_name = m.get_name()
@@ -187,17 +187,17 @@ def create_map(route, start, end, dist, dur, asc, desc):
             if (name === "☕ Café")       { tag = "amenity"; value = "cafe"; }
             if (name === "🚲 Fahrradladen") { tag = "shop"; value = "bicycle"; }
             if (name === "🥐 Bäckerei")   { tag = "shop"; value = "bakery"; }
-            if (name === "Luftpumpe")   { tag = "amenity"; value = "compressed_air"; }
-            if (name === "Hostel")   { tag = "tourism"; value = "hostel"; }
-            if (name === "Schutzhütte")   { tag = "tourism"; value = "wilderness_hut"; }
-            if (name === "Campingplatz")   { tag = "tourism"; value = "camp_site"; }
-            if (name === "Supermarkt")   { tag = "shop"; value = "supermarket"; }
-            if (name === "Bank")   { tag = "amenity"; value = "atm"; }
-            if (name === "Waschsalon")   { tag = "shop"; value = "laundry"; }
-            if (name === "Friedhof")   { tag = "amenity"; value = "graveyard"; }
-            if (name === "Repairstation")   { tag = "amenity"; value = "bicyle_repair_station"; }
-            if (name === "Fahrradständer")   { tag = "amenity"; value = "bicycle_parking"; }
-            if (name === "Bahnhof")   { tag = "railway"; value = "station"; }
+            if (name === "💨 Luftpumpe")   { tag = "amenity"; value = "compressed_air"; }
+            if (name === "🏠 Hostel")   { tag = "tourism"; value = "hostel"; }
+            if (name === "⌂ Schutzhütte")   { tag = "tourism"; value = "wilderness_hut"; }
+            if (name === "🏕️ Campingplatz")   { tag = "tourism"; value = "camp_site"; }
+            if (name === "🛒 Supermarkt")   { tag = "shop"; value = "supermarket"; }
+            if (name === "🏧 Bank")   { tag = "amenity"; value = "atm"; }
+            if (name === "🧺 Waschsalon")   { tag = "shop"; value = "laundry"; }
+            if (name === "💧 Friedhof")   { tag = "amenity"; value = "graveyard"; }
+            if (name === "🛠️ Repairstation")   { tag = "amenity"; value = "bicycle_repair_station"; }
+            if (name === "🅿️ Fahrradständer")   { tag = "amenity"; value = "bicycle_parking"; }
+            if (name === "🚉 Bahnhof")   { tag = "railway"; value = "station"; }
 
             if (!tag) return;
 
@@ -240,8 +240,8 @@ def create_map(route, start, end, dist, dur, asc, desc):
 if __name__ == "__main__":
     print("=== Fahrrad-Routenplaner ===\n")
 
-    start = input("Start (Enter = Karlsruher Schloss): ").strip() or "Karlsruher Schloss"
-    end = input("Ziel (Enter = Hauptbahnhof Karlsruhe): ").strip() or "Hauptbahnhof Karlsruhe"
+    start = input("Start (Enter = Aachen): ").strip() or "Aachen"
+    end = input("Ziel (Enter = Maastricht): ").strip() or "Maastricht"
 
     print("\nBerechne Route...\n")
 
