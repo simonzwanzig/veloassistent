@@ -107,7 +107,7 @@ document.addEventListener("DOMContentLoaded", function () {
         "🥐 Bäckerei": "bakery",
         "💨 Luftpumpe": "air",
         "🏠 Hostel": "hostel",
-        "🛏️ Schutzhütte": "hut",
+        "🛏️ Unterstand": "hut",
         "⛺ Campingplatz": "camping",
         "🛒 Supermarkt": "supermarket",
         "🏧 Bank": "atm",

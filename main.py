@@ -54,8 +54,8 @@ POI_MAPPING = {
         "emoji": "🏠"
     },
     "hut": {
-        "label": "🛏️ Schutzhütte",
-        "tag": ("tourism", "wilderness_hut"),
+        "label": "🛏️ Unterstand",
+        "tag": ("amenity", "shelter"),
         "emoji": "🛏️"
     },
     "camping": {
@@ -80,7 +80,7 @@ POI_MAPPING = {
     },
     "graveyard": {
         "label": "💧 Friedhof",
-        "tag": ("amenity", "graveyard"),
+        "tag": ("landuse", "cemetery"),
         "emoji": "💧"
     },
     "repair": {
@@ -411,7 +411,7 @@ def create_map(route, start, end, dist, dur, asc, desc, start_name, end_name, bi
         "🥐 Bäckerei",
         "💨 Luftpumpe",
         "🏠 Hostel",
-        "🛏️ Schutzhütte",
+        "🛏️ Unterstand",
         "⛺ Campingplatz",
         "🛒 Supermarkt",
         "🏧 Bank",
