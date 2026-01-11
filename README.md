@@ -24,8 +24,6 @@ Die Anwendung berechnet Fahrradrouten zwischen zwei Orten und zeigt **relevante 
 - 🎨 Modernes UI
 - 🖥️ Lokaler Flask-Server
 
----
-
 ## Im Hintergrund
 
 - **Python 3.9+**
@@ -35,8 +33,6 @@ Die Anwendung berechnet Fahrradrouten zwischen zwei Orten und zeigt **relevante 
 - **Overpass API (OpenStreetMap)**
 - **JavaScript (Fetch, Leaflet)**
 - **HTML / CSS**
-
----
 
 ## Projektstruktur
 
@@ -53,8 +49,6 @@ Die Anwendung berechnet Fahrradrouten zwischen zwei Orten und zeigt **relevante 
   │ └── autocomplete.js # Autocomplete für Start & Ziel
   │
   └── README.md
-  
----
 
 ## Voraussetzungen
 
@@ -67,9 +61,7 @@ Die Anwendung berechnet Fahrradrouten zwischen zwei Orten und zeigt **relevante 
 
 ```env
 ORS_API_KEY=DEIN_API_KEY_HIER
-  
----
-
+ 
 ## Installation
 
 # Repository klonen
@@ -79,7 +71,6 @@ cd veloassistent
 # Abhängigkeiten installieren
 pip install -r requirements.txt
 
----
 
 ##Starten
 
