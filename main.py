@@ -3,6 +3,8 @@ import openrouteservice
 import folium
 from folium import Element
 import json
+import requests
+import hashlib
 from dotenv import load_dotenv
 
 # ==========================
@@ -11,6 +13,104 @@ from dotenv import load_dotenv
 load_dotenv() 
 ORS_API_KEY = os.getenv("ORS_API_KEY")
 client = openrouteservice.Client(key=ORS_API_KEY)
+
+# ==========================
+# POI Mapping (zentral)
+# ==========================
+POI_MAPPING = {
+    "water": {
+        "label": "💧 Trinkwasser",
+        "tag": ("amenity", "drinking_water"),
+        "emoji": "💧"
+    },
+    "toilets": {
+        "label": "🚻 Toiletten",
+        "tag": ("amenity", "toilets"),
+        "emoji": "🚻"
+    },
+    "cafe": {
+        "label": "☕ Café",
+        "tag": ("amenity", "cafe"),
+        "emoji": "☕"
+    },
+    "bike_shop": {
+        "label": "🚲 Fahrradladen",
+        "tag": ("shop", "bicycle"),
+        "emoji": "🚲"
+    },
+    "bakery": {
+        "label": "🥐 Bäckerei",
+        "tag": ("shop", "bakery"),
+        "emoji": "🥐"
+    },
+    "air": {
+        "label": "💨 Luftpumpe",
+        "tag": ("amenity", "compressed_air"),
+        "emoji": "💨"
+    },
+    "hostel": {
+        "label": "🏠 Hostel",
+        "tag": ("tourism", "hostel"),
+        "emoji": "🏠"
+    },
+    "hut": {
+        "label": "🛏️ Schutzhütte",
+        "tag": ("tourism", "wilderness_hut"),
+        "emoji": "🛏️"
+    },
+    "camping": {
+        "label": "⛺ Campingplatz",
+        "tag": ("tourism", "camp_site"),
+        "emoji": "⛺"
+    },
+    "supermarket": {
+        "label": "🛒 Supermarkt",
+        "tag": ("shop", "supermarket"),
+        "emoji": "🛒"
+    },
+    "atm": {
+        "label": "🏧 Bank",
+        "tag": ("amenity", "atm"),
+        "emoji": "🏧"
+    },
+    "laundry": {
+        "label": "🧺 Waschsalon",
+        "tag": ("shop", "laundry"),
+        "emoji": "🧺"
+    },
+    "graveyard": {
+        "label": "💧 Friedhof",
+        "tag": ("amenity", "graveyard"),
+        "emoji": "💧"
+    },
+    "repair": {
+        "label": "🛠️ Repairstation",
+        "tag": ("amenity", "bicycle_repair_station"),
+        "emoji": "🛠️"
+    },
+    "parking": {
+        "label": "🅿️ Fahrradständer",
+        "tag": ("amenity", "bicycle_parking"),
+        "emoji": "🅿️"
+    },
+    "station": {
+        "label": "🚉 Bahnhof",
+        "tag": ("railway", "station"),
+        "emoji": "🚉"
+    }
+}
+# ==========================
+# POI Backend State
+# ==========================
+LAST_ROUTE = None
+POI_CACHE = {}
+
+OVERPASS_SERVERS = [
+    "https://overpass-api.de/api/interpreter",
+    "https://overpass.kumi.systems/api/interpreter",
+    "https://overpass.openstreetmap.ru/api/interpreter"
+]
+
 # ==========================
 # ROUTING (OpenRouteService)
 # ==========================
@@ -45,7 +145,9 @@ def find_bike_route(start_name, end_name, bike_type="standard"):
     print(f"✓ Distanz: {summary['distance']/1000:.2f} km")
     print(f"✓ Dauer: {summary['duration']/60:.1f} min")
     print(f"✓ Aufstieg: {ascent:.0f} m | Abstieg: {descent:.0f} m")
-
+    global LAST_ROUTE
+    LAST_ROUTE = [(p[1], p[0]) for p in coords]
+    
     return (
         coords,
         start,
@@ -341,3 +443,61 @@ def create_map(route, start, end, dist, dur, asc, desc, start_name, end_name, bi
 
 
     m.save("route.html")
+
+# ==========================
+# POIs serverseitig entlang Route
+# ==========================
+def get_pois_along_route(poi_type):
+
+    if poi_type not in POI_MAPPING or not LAST_ROUTE:
+        return []
+
+    tag, value = POI_MAPPING[poi_type]["tag"]
+
+    cache_key = hashlib.md5(
+        (poi_type + json.dumps(LAST_ROUTE)).encode()
+    ).hexdigest()
+
+    if cache_key in POI_CACHE:
+        return POI_CACHE[cache_key]
+
+    # Route sampeln (alle ~500 m)
+    points = LAST_ROUTE[::30]
+
+    query = f"""
+[out:json][timeout:60];
+(
+{chr(10).join(
+    f'node(around:250,{lat},{lon})["{tag}"="{value}"];'
+    for lat, lon in points
+)}
+);
+out body 100;
+    """
+
+    for url in OVERPASS_SERVERS:
+        try:
+            r = requests.post(url, data=query, timeout=60)
+            r.raise_for_status()
+            data = r.json()
+
+            pois = []
+            for el in data.get("elements", []):
+                if "lat" not in el:
+                    continue
+                tags = el.get("tags", {})
+                pois.append({
+                    "lat": el["lat"],
+                    "lon": el["lon"],
+                    "name": tags.get("name") or tags.get("brand"),
+                    "street": tags.get("addr:street"),
+                    "housenumber": tags.get("addr:housenumber"),
+                    "city": tags.get("addr:city")
+                })
+            POI_CACHE[cache_key] = pois
+            return pois
+
+        except Exception as e:
+            print("Overpass failed:", url, e)
+
+    return []
