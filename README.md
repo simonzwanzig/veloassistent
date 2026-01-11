@@ -35,21 +35,18 @@ Die Anwendung berechnet Fahrradrouten zwischen zwei Orten und zeigt **relevante 
 - **HTML / CSS**
 
 ## Projektstruktur
-
-  veloassistent/
-  │
-  ├── app.py # Flask Server
-  ├── main.py # Routing + Kartenerstellung
-  ├── route.html # Generierte Karte (automatisch)
-  ├── requirements.txt
-  ├── .env
-  │
-  ├── static/
-  │ ├── pois.js # POIs via Overpass API
-  │ └── autocomplete.js # Autocomplete für Start & Ziel
-  │
-  └── README.md
-
+```
+veloassistant/
+├── app.py # Flask Server
+├── main.py # Routing + Kartenerstellung
+├── route.html # Generierte Karte (automatisch)
+├── requirements.txt
+├── .env
+├── static/
+│ ├── pois.js # POIs via Overpass API
+│ └── autocomplete.js # Autocomplete für Start & Ziel
+└── README.md
+```
 ## Voraussetzungen
 
 ### OpenRouteService API-Key
@@ -61,21 +58,23 @@ Die Anwendung berechnet Fahrradrouten zwischen zwei Orten und zeigt **relevante 
 
 ```env
 ORS_API_KEY=DEIN_API_KEY_HIER
- 
+```
 ## Installation
 
 # Repository klonen
+```
 git clone https://github.com/simonzwanzig/veloassistent.git
 cd veloassistent
-
+```
 # Abhängigkeiten installieren
+```
 pip install -r requirements.txt
-
+```
 
 ##Starten
-
+```
 python app.py
-
+```
 #Danach im Browser öffnen:
 
 http://127.0.0.1:5000
