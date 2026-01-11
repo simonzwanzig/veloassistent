@@ -15,11 +15,23 @@ Die Anwendung berechnet Fahrradrouten zwischen zwei Orten und zeigt **relevante 
   - Dauer
   - Höhenmeter (Auf- & Abstieg)
 - 🧩 POI-Layer entlang der Route:
-  - 🛒 Supermärkte 
-  - 
-  - 
-  - 🏠 Hostels
-  - 🚲 Fahrradläden
+  - 💧 Trinkwasser
+  - 🚻 Toiletten
+  - ☕ Café
+  - 🏠 Hostel
+  - 🚲 Fahrradladen
+  - 🥐 Bäckerei
+  - 💨 Luftpumpe
+  - 🏠 Hostel
+  - 🛏️ Schutzhütte
+  - 🏕️ Campingplatz
+  - 🛒 Supermarkt
+  - 🏧 Bank
+  - 🧺 Waschsalon
+  - 💧 Friedhof
+  - 🛠️ Repairstation
+  - 🅿️ Fahrradständer
+  - 🚉 Bahnhof
 - 📍 POIs werden **nur bei aktivem Layer** geladen (Overpass API)
 - 🎨 Modernes UI
 - 🖥️ Lokaler Flask-Server
@@ -37,7 +49,7 @@ Die Anwendung berechnet Fahrradrouten zwischen zwei Orten und zeigt **relevante 
 ## Projektstruktur
 ```
 veloassistant/
-├── app.py Flask Server
+├── app.py               Flask Server
 ├── main.py              Routing + Kartenerstellung
 ├── route.html           Generierte Karte (automatisch)
 ├── requirements.txt
