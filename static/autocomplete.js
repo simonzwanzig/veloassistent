@@ -1,10 +1,11 @@
+// Funktion zum Aktivieren der Autovervollständigung
 function enableAutocomplete(inputId, boxId) {
     const input = document.getElementById(inputId);
     const box = document.getElementById(boxId);
     const ORS_API_KEY = document.body.dataset.orsKey;
 
     let timeout = null;
-
+        
     input.addEventListener("input", () => {
         clearTimeout(timeout);
         const q = input.value;
@@ -46,7 +47,7 @@ document.addEventListener("DOMContentLoaded", () => {
     enableAutocomplete("end", "end-suggestions");
 });
 
-// Swap
+// Funktion zum Vertauschen der Start- und Endpunkte
 function swap() {
     const s = document.getElementById("start");
     const e = document.getElementById("end");

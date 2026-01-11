@@ -15,15 +15,23 @@ client = openrouteservice.Client(key=ORS_API_KEY)
 # ROUTING (OpenRouteService)
 # ==========================
 
-def find_bike_route(start_name, end_name):
+def find_bike_route(start_name, end_name, bike_type="standard"):
 
+    profiles = {
+        "standard": "cycling-regular",
+        "road": "cycling-road",
+        "mtb": "cycling-mountain",
+        "ebike": "cycling-electric"
+    }
+
+    profile = profiles.get(bike_type, "cycling-regular")
 
     start = client.pelias_search(start_name)["features"][0]["geometry"]["coordinates"]
     end = client.pelias_search(end_name)["features"][0]["geometry"]["coordinates"]
 
     route = client.directions(
         coordinates=[start, end],
-        profile="cycling-regular",
+        profile=profile,
         format="geojson",
         elevation=True
     )
@@ -53,7 +61,7 @@ def find_bike_route(start_name, end_name):
 # KARTE (Folium)
 # ==========================
 
-def create_map(route, start, end, dist, dur, asc, desc, start_name, end_name):
+def create_map(route, start, end, dist, dur, asc, desc, start_name, end_name, bike_type):
 
     # lon,lat → lat,lon
     route_latlon = [(p[1], p[0]) for p in route]
@@ -73,7 +81,8 @@ def create_map(route, start, end, dist, dur, asc, desc, start_name, end_name):
     </script>
     """)
     )
-
+    
+    # Grundlegende CSS
     base_css = """
     <style>
     html, body {
@@ -90,9 +99,10 @@ def create_map(route, start, end, dist, dur, asc, desc, start_name, end_name):
     </style>
     """
     m.get_root().html.add_child(Element(base_css))
+   
+    # Box oben links für Eingabe
     ui_css = """
     <style>
-
     .ui-box {
         background: white;
         border-radius: 14px;
@@ -145,9 +155,24 @@ def create_map(route, start, end, dist, dur, asc, desc, start_name, end_name):
     .ui-box {
         backdrop-filter: blur(6px);
     }
+    .ui-box select {
+        width: 180px;
+        padding: 6px 8px;
+        border-radius: 8px;
+        border: 1px solid #ddd;
+        font-size: 13px;
+        background: white;
+    }
+
+    .ui-box select:focus {
+        outline: none;
+        border-color: #4a90e2;
+    }
     </style>
     """
     m.get_root().html.add_child(folium.Element(ui_css))
+
+    # Tausch-Button CSS
     swap_css = """
     <style>
     .swap-btn {
@@ -166,6 +191,8 @@ def create_map(route, start, end, dist, dur, asc, desc, start_name, end_name):
     }
     </style>
     """
+
+    # Autocomplete CSS
     m.get_root().html.add_child(Element(swap_css))
     autocomplete_css = """
     <style>
@@ -204,6 +231,7 @@ def create_map(route, start, end, dist, dur, asc, desc, start_name, end_name):
     color="blue"
     ).add_to(m)
 
+    # Markierungen Start / Ziel
     folium.Marker(
         [start[1], start[0]],
         popup="Start",
@@ -216,8 +244,7 @@ def create_map(route, start, end, dist, dur, asc, desc, start_name, end_name):
         icon=folium.Icon(color="red", icon="flag", prefix="fa")
     ).add_to(m)
 
-    # POI-Layer (leer!)
-
+    # POI-Layer (nur für UI)
     poi_layers = [
         "💧 Trinkwasser",
         "🚻 Toiletten",
@@ -243,9 +270,17 @@ def create_map(route, start, end, dist, dur, asc, desc, start_name, end_name):
         fg.add_to(m)
         poi_groups[name] = fg
 
-    # Info-Box
+    bike_labels = {
+        "standard": "🚴 Standardrad",
+        "road": "🏎️ Rennrad",
+        "mtb": "🚵 MTB",
+        "ebike": "⚡ E-Bike"
+    }
+    
+    # Info-Box unten links
     info = f"""
     <div class="ui-box ui-fixed" style="bottom:20px; left:20px; z-index:9999;">
+        <b>Fahrrad:</b> {bike_labels.get(bike_type, "🚴 Standardrad")}<br>
         <b>Distanz:</b> {dist/1000:.2f} km<br>
         <b>Dauer:</b> {dur/60:.1f} min<br>
         <b>Aufstieg:</b> {asc:.0f} m<br>
@@ -260,6 +295,8 @@ def create_map(route, start, end, dist, dur, asc, desc, start_name, end_name):
     m.get_root().html.add_child(
         Element('<script src="/static/pois.js"></script>')
     )
+    
+    # Eingabe-Formular
     form = f"""
     <form method="POST"
       class="ui-box ui-fixed"
@@ -284,6 +321,14 @@ def create_map(route, start, end, dist, dur, asc, desc, start_name, end_name):
                autocomplete="off" placeholder="Passau">
         <div id="end-suggestions" class="suggestions"></div>
     </div><br>
+
+    <label>Fahrradtyp</label><br>
+    <select name="bike_type" style="width:180px; margin-bottom:8px;">
+        <option value="standard">🚴 Standardrad</option>
+        <option value="road">🏎️ Rennrad</option>
+        <option value="mtb">🚵 MTB</option>
+        <option value="ebike">⚡ E-Bike</option>
+    </select>
 
     <button type="submit">Route berechnen</button>
     </form>

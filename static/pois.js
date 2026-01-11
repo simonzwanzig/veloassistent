@@ -1,5 +1,23 @@
-document.addEventListener("DOMContentLoaded", function () {
+document.addEventListener("DOMContentLoaded", function () { 
+    // ==========================    
+    // POI Namen anzeigen
+    // ==========================
 
+    function getPoiName(tags, fallback) {
+        return (
+            tags.name ||
+            tags.brand ||
+            fallback
+        );
+    }
+
+    function poiPopup(icon, name, tags) {
+        let addr = "";
+        if (tags["addr:street"]) {
+            addr = `<br>${tags["addr:street"]} ${tags["addr:housenumber"] || ""}`;
+        }
+        return `${icon} <b>${name}</b>${addr}`;
+    }
     // ==========================
     // Leaflet-Map von Folium finden
     // ==========================
@@ -9,7 +27,7 @@ document.addEventListener("DOMContentLoaded", function () {
         return;
     }
 
-    // Route kommt aus Python
+
     const route = ROUTE_DATA;
 
     const loadedLayers = {};
@@ -136,12 +154,22 @@ out body;
             data.elements.forEach(el => {
                 if (!el.lat || !el.lon) return;
 
+                
+                const tags = el.tags || {};
+                const poiName = getPoiName(tags, e.name.slice(2));
+
                 L.marker(
                     [el.lat, el.lon],
-                    { icon: emojiPin(name.split(" ")[0]) }
+                    { icon: emojiPin(e.name.split(" ")[0]) }
                 )
                 .addTo(e.layer)
-                .bindPopup(`<b>${name}</b>`);
+                .bindTooltip(poiName)
+                .bindPopup(poiPopup(
+                    e.name.split(" ")[0],
+                    poiName,
+                    tags
+              ));
+                
             });
         })
         .catch(err => console.error("Overpass error:", err));

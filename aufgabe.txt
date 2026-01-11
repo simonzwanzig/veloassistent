@@ -10,9 +10,10 @@ Abgabe & Prüfung
 
 Abgabe: spätestens 11.01., 23:59 Uhr
 
-Abgabe erfolgt über ein eigenes GitHub-Repository
+Abgabe erfolgt über ein eigenes GitHub-Repository x 
 
-Ladet den Account @informaticshska als Collaborator ein
+Ladet den Account @informaticshska als Collaborator einx 
+
 
 Commits nach dem Abgabedatum zählen nicht
 
