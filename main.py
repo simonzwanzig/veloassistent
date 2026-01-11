@@ -206,6 +206,8 @@ def create_map(route, start, end, dist, dur, asc, desc, start_name, end_name, bi
     ui_css = """
     <style>
     .ui-box {
+        width: fit-content;
+        max-width: none;
         background: white;
         border-radius: 14px;
         padding: 14px;
@@ -214,6 +216,7 @@ def create_map(route, start, end, dist, dur, asc, desc, start_name, end_name, bi
         font-size: 14px;
         color: #222;
     }
+    
     .ui-fixed {
         position: fixed;
     }
@@ -234,17 +237,19 @@ def create_map(route, start, end, dist, dur, asc, desc, start_name, end_name, bi
         outline: none;
         border-color: #4a90e2;
     }
-
-    .ui-box button {
-        margin-top: 6px;
-        padding: 6px 10px;
-        border-radius: 8px;
+    .ui-box .primary-btn {
+        width: 180px;
+        display: block;
+        margin-top: 14px;
+        padding: 8px 10px;
+        border-radius: 10px;
         border: none;
         background: #4a90e2;
         color: white;
-        cursor: pointer;
+        font-weight: 600;
         font-size: 13px;
-    }
+        cursor: pointer;
+    }    
 
     .ui-box button.secondary {
         background: #eee;
@@ -270,7 +275,58 @@ def create_map(route, start, end, dist, dur, asc, desc, start_name, end_name, bi
         outline: none;
         border-color: #4a90e2;
     }
-    </style>
+
+    .leaflet-top.leaflet-left {
+        pointer-events: none;
+        width: auto !important;
+    }
+
+
+    .leaflet-top.leaflet-left .ui-box {
+        pointer-events: auto;
+    }
+
+    .leaflet-control {
+        background: transparent !important;
+        box-shadow: none !important;
+        border: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        width: auto !important;
+    }
+
+    .leaflet-control.leaflet-bar {
+        min-width: 0 !important;
+        width: auto !important;
+    }
+    .leaflet-control-layers {
+        background: white !important;
+        border-radius: 14px !important;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.15) !important;
+        border: none !important;
+        backdrop-filter: none !important;
+        padding: 14px 16px !important;
+
+        margin: 0 !important;
+    }
+    .leaflet-control-layers {
+        padding: 14px !important;
+        border-radius: 14px !important;
+    }
+    .leaflet-top.leaflet-right {
+        top: 15px !important;
+        right: 15px !important;
+    }
+    .leaflet-control-layers label {
+        display: block;
+        margin-bottom: 6px;
+    }
+
+    .leaflet-control-layers-overlays {
+        max-height: none !important;
+        overflow: visible !important;
+    }
+        </style>
     """
     m.get_root().html.add_child(folium.Element(ui_css))
 
@@ -401,8 +457,8 @@ def create_map(route, start, end, dist, dur, asc, desc, start_name, end_name, bi
     # Eingabe-Formular
     form = f"""
     <form method="POST"
-      class="ui-box ui-fixed"
-      style="top:15px; left:15px; z-index:20000; display:inline-block;">
+    class="ui-box ui-fixed"
+    style="top:15px; left:15px; z-index:20000;">
 
     <h3>🚲 Route berechnen</h3>
 
@@ -413,7 +469,11 @@ def create_map(route, start, end, dist, dur, asc, desc, start_name, end_name, bi
         <div id="start-suggestions" class="suggestions"></div>
     </div>
 
-    <div style="text-align:center; margin:8px 0;">
+    <div style="
+        display:flex;
+        justify-content:center;
+        margin:10px 0;
+    ">
         <button type="button" class="swap-btn" onclick="swap()">↕</button>
     </div>
 
@@ -425,22 +485,26 @@ def create_map(route, start, end, dist, dur, asc, desc, start_name, end_name, bi
     </div><br>
 
     <label>Fahrradtyp</label><br>
-    <select name="bike_type" style="width:180px; margin-bottom:8px;">
+    <select name="bike_type" style="width:180px; margin-bottom:12px;">
         <option value="standard">🚴 Standardrad</option>
         <option value="road">🏎️ Rennrad</option>
         <option value="mtb">🚵 MTB</option>
         <option value="ebike">⚡ E-Bike</option>
     </select>
 
-    <button type="submit">Route berechnen</button>
+    <button type="submit" class="primary-btn">
+        Route berechnen
+    </button>
     </form>
     """
     m.get_root().html.add_child(Element(form))
     m.get_root().html.add_child(
         Element('<script src="/static/autocomplete.js"></script>')
     )
-    folium.LayerControl(collapsed=False).add_to(m)
-
+    folium.LayerControl(
+        collapsed=False,
+        hideSingleBase=True
+    ).add_to(m)
 
     m.save("route.html")
 
